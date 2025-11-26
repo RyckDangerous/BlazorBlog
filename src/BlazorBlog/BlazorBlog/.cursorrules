@@ -1,0 +1,273 @@
+# Règles de développement MarioShows
+
+## 🏗️ Architecture
+
+### Vertical Slice Architecture
+- **TOUJOURS** suivre la Vertical Slice Architecture
+- Structure obligatoire : `Features/{Feature}/{Components,Services,Models,Repository,Configurations}`
+- Chaque feature est autonome et contient tout ce dont elle a besoin
+- Il peut y avoir un dossier "Shared" pour de vrais utilitaires partagés. Si un modèle devient commun à l'application, il faut le mettre dans "Core/Models", car utilisé dans beaucoup de Feature.
+
+### Séparation des responsabilités
+- **AUCUNE logique métier dans les vues (.razor)**
+- Toute la logique doit être dans le code-behind (.razor.cs) ou dans les services
+- Les vues ne font que de l'affichage et délèguent tout au code-behind
+- Le code-behind délègue la logique métier aux services
+
+### Services et couches
+- Services métier : contiennent la logique applicative
+- Services de vue (ViewService) : gèrent l'état et la logique de présentation
+- Repositories : accès aux données uniquement
+- Pas de logique métier dans les repositories
+
+## 📝 Standards de code C#
+
+### Classes et Records
+- **Toutes les classes et records doivent être `sealed` par défaut**
+- Utiliser `record` pour les modèles immuables (DTOs, ViewModels, etc.)
+- Utiliser `class` pour les services et repositories
+- N'enlever `sealed` QUE si l'héritage est explicitement nécessaire
+
+```csharp
+// ✅ BON
+public sealed record UserViewModel { ... }
+public sealed class UserService { ... }
+
+// ❌ MAUVAIS
+public record UserViewModel { ... }
+public class UserService { ... }
+```
+
+### Comparaisons et tests de nullité
+- **TOUJOURS** utiliser `is` ou `is not` pour les comparaisons d'enum et les tests de nullité
+- Plus d'intention et de lisibilité qu'avec `==` ou `!=`
+
+```csharp
+// ✅ BON - Tests de nullité
+if (myVariable is null) { ... }
+if (myVariable is not null) { ... }
+
+// ✅ BON - Comparaisons d'enum
+if (status is FavoriteStatus.AVoir) { ... }
+if (priority is not FavoritePriority.Haute) { ... }
+
+// ❌ MAUVAIS
+if (myVariable == null) { ... }
+if (myVariable != null) { ... }
+if (status == FavoriteStatus.AVoir) { ... }
+```
+
+### Documentation
+- **TOUJOURS** documenter les méthodes publiques avec des XML comments (`///`)
+- Documenter les propriétés publiques des modèles
+- Utiliser `<summary>`, `<param>`, `<returns>`, `<exception>` selon le besoin
+- Ajouter des commentaires inline pour la logique complexe
+
+```csharp
+/// <summary>
+/// Charge les favoris de l'utilisateur connecté.
+/// </summary>
+/// <returns>Une liste de favoris.</returns>
+/// <exception cref="UnauthorizedException">Si l'utilisateur n'est pas authentifié.</exception>
+public async Task<List<Favorite>> LoadFavoritesAsync() { ... }
+```
+
+### Injection de dépendances
+- **TOUJOURS** utiliser l'injection de dépendances pour les services
+- Enregistrer les services dans les fichiers `Configurations/{Feature}Configuration.cs`
+- Utiliser `services.AddScoped<T>()` pour les services avec état de requête
+- Utiliser `services.AddTransient<T>()` pour les services sans état
+
+### Logging
+- Logger toutes les actions importantes (début, succès, erreur)
+- Utiliser `ILogger<T>` injecté
+- Niveaux : `LogInformation`, `LogWarning`, `LogError`, `LogDebug`
+
+```csharp
+_logger.LogInformation("Chargement des favoris pour l'utilisateur {UserId}", userId);
+_logger.LogError(ex, "Erreur lors du chargement des favoris");
+```
+
+## 🎨 Composants Blazor
+
+### Composants autonomes
+- Les composants doivent être **autonomes** et fonctionner uniquement avec des paramètres
+- **AUCUN accès direct aux services** dans les composants enfants
+- Toutes les données nécessaires doivent être passées via `[Parameter]`
+- Communication parent-enfant via `EventCallback<T>`
+
+```csharp
+// ✅ BON - Composant autonome
+[Parameter]
+public Favorite Favorite { get; set; } = default!;
+
+[Parameter]
+public EventCallback<Favorite> OnRemove { get; set; }
+
+// ❌ MAUVAIS - Accès direct à un service
+[Inject]
+private IFavoriteService FavoriteService { get; set; }
+```
+
+### Structure des composants
+- `{Component}.razor` : markup uniquement
+- `{Component}.razor.cs` : code-behind avec toute la logique
+- `{Component}.razor.css` : styles scoped au composant
+- Ajouter un `README.md` pour les composants complexes ou réutilisables
+
+### Styles
+- **TOUJOURS** utiliser des styles scoped (`.razor.css`)
+- Ne pas utiliser de styles inline sauf exception justifiée
+- Utiliser Bootstrap pour la structure, styles custom pour les détails
+
+## 🎯 Conventions de nommage
+
+### Suffixes obligatoires
+- Services métier : `{Feature}Service` (ex: `FavoriteService`)
+- Services de vue : `{Feature}ViewService` (ex: `FavoritesViewService`)
+- Repositories : `{Entity}Repository` (ex: `FavoriteRepository`)
+- ViewModels : `{Feature}ViewModel` (ex: `FavoritesViewModel`)
+- Configurations DI : `{Feature}Configuration` (ex: `FavoritesConfiguration`)
+
+### Interfaces
+- Préfixe `I` pour toutes les interfaces (ex: `IFavoriteService`)
+- Une interface par service pour faciliter les tests
+
+### Fichiers et dossiers
+- PascalCase pour tous les noms de fichiers
+- Dossiers : `Components`, `Services`, `Models`, `Repository`, `Configurations`
+- Pages : suffixe `Page` (ex: `FavoritesPage.razor`)
+
+## 🧪 Tests et qualité
+
+### Tests unitaires
+- Écrire des tests unitaires pour toute la logique métier
+- Les services doivent être testables (injection de dépendances)
+- Mocker les dépendances avec des interfaces
+
+### Gestion des erreurs
+- **TOUJOURS** utiliser le pattern `ResultOf<T>` pour les retours de méthodes des services
+- Les méthodes doivent retourner `ResultOf<T>` ou `ResultOf` (sans valeur)
+- Utiliser `ResultOf.Success(value)` pour les succès et `ResultOf.Failure(error)` pour les erreurs
+- Créer des classes d'erreur spécifiques héritant de `Error` (ex: `NotFoundError`, `ValidationError`, etc.)
+- Logger les erreurs dans les services avant de retourner un `ResultOf.Failure`
+- Dans les code-behind, vérifier `result.HasError` et afficher les messages via Snackbar
+
+```csharp
+// ✅ BON - Dans un service
+public async Task<ResultOf<User>> GetUserAsync(string userId)
+{
+    try
+    {
+        var user = await _repository.FindByIdAsync(userId);
+        if (user is null)
+        {
+            _logger.LogWarning("Utilisateur {UserId} introuvable", userId);
+            return ResultOf.Failure<User>(new NotFoundError($"Utilisateur {userId} introuvable"));
+        }
+        return ResultOf.Success(user);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Erreur lors de la récupération de l'utilisateur {UserId}", userId);
+        return ResultOf.Failure<User>(new Error("Erreur lors de la récupération de l'utilisateur", ex));
+    }
+}
+
+// ✅ BON - Dans un code-behind
+var result = await _userService.GetUserAsync(userId);
+if (result.HasError)
+{
+    _logger.LogError("Erreur: {Message}", result.Error?.Message);
+    _snackbar.ShowError(result.Error?.Message ?? "Une erreur est survenue.");
+    return;
+}
+var user = result.Value;
+_snackbar.ShowSuccess("Utilisateur chargé avec succès !");
+```
+
+```csharp
+// ❌ MAUVAIS - Utiliser des exceptions pour le flux normal
+public async Task<User> GetUserAsync(string userId)
+{
+    var user = await _repository.FindByIdAsync(userId);
+    if (user is null)
+    {
+        throw new NotFoundException("Utilisateur introuvable");
+    }
+    return user;
+}
+```
+
+## 🚀 Bonnes pratiques spécifiques
+
+### ViewModels
+- Utiliser des `record` pour les ViewModels
+- Immuables par défaut (utiliser `with` pour les modifications)
+- Contiennent UNIQUEMENT l'état de la vue (pas de logique)
+
+### Services de vue (ViewService)
+- Gèrent l'état de la vue via un ViewModel
+- Contiennent la logique de présentation (filtrage, formatage, etc.)
+- Font le pont entre la page et les services métier
+- Exposent le ViewModel via une propriété publique
+
+### Async/Await
+- **TOUJOURS** utiliser `async`/`await` pour les opérations IO
+- Suffixe `Async` pour toutes les méthodes asynchrones
+- Ne jamais bloquer avec `.Result` ou `.Wait()`
+
+### Pattern matching
+- Utiliser le pattern matching moderne de C#
+- `switch` expressions pour la lisibilité
+
+```csharp
+// ✅ BON
+var color = type switch
+{
+    ShowType.Series => "#FF5722",
+    ShowType.Movie => "#2196F3",
+    _ => "#9e9e9e"
+};
+```
+
+## 📚 Documentation des features
+
+### README.md
+- Créer un `README.md` dans chaque feature complexe ou réutilisable
+- Documenter : description, paramètres, utilisation, exemples
+- Expliquer les responsabilités et les dépendances
+
+## 🔒 Sécurité et authentification
+
+### Gestion des utilisateurs
+- Toujours vérifier l'authentification avec `AuthenticationStateProvider`
+- Récupérer l'ID utilisateur via les claims
+- Ne jamais faire confiance aux données côté client
+
+```csharp
+var authState = await _authStateProvider.GetAuthenticationStateAsync();
+if (!authState.User.Identity?.IsAuthenticated ?? true)
+{
+    return null;
+}
+var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+```
+
+## 📌 Résumé : Les règles d'or
+
+1. ✅ **`sealed`** par défaut pour classes et records
+2. ✅ **`is` / `is not`** pour les comparaisons et tests de nullité
+3. ✅ **Vertical Slice Architecture** - tout dans Features
+4. ✅ **Pas de logique dans les vues** - tout dans le code-behind/services
+5. ✅ **Composants autonomes** - paramètres uniquement, pas de services
+6. ✅ **Documentation XML** - toutes les méthodes publiques
+7. ✅ **EventCallback** - communication parent-enfant
+8. ✅ **Logging** - toutes les actions importantes
+9. ✅ **Try-catch** - gestion des erreurs partout
+10. ✅ **Interfaces** - pour tous les services (testabilité)
+
+---
+
+💡 **Note** : Ces règles sont là pour garantir la maintenabilité, la testabilité et la clarté du code. Si une règle doit être enfreinte pour une raison valable, documenter le pourquoi.
+
