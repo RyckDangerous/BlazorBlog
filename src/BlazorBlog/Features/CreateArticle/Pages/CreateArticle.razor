@@ -1,0 +1,102 @@
+@page "/articles/create"
+@using BlazorBlog.Features.CreateArticle.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject ICreateArticlePageViewService ViewService
+
+<PageTitle>Créer un article</PageTitle>
+
+<div class="create-article-container">
+    <div class="create-article-header">
+        <h1 class="tech-title">
+            <span class="tech-accent">></span> Créer un nouvel article
+        </h1>
+        <p class="tech-subtitle">Rédigez votre article en Markdown</p>
+    </div>
+
+    <EditForm Model="@ViewService.InputModel" OnValidSubmit="@HandleSubmit" class="article-form">
+        <DataAnnotationsValidator />
+        
+        <div class="form-group">
+            <label for="title" class="form-label">
+                <span class="label-icon">📝</span> Titre
+            </label>
+            <InputText id="title" @bind-Value="ViewService.InputModel.Title" class="form-control tech-input" placeholder="Entrez le titre de votre article..." />
+            <ValidationMessage For="@(() => ViewService.InputModel.Title)" class="validation-message" />
+        </div>
+
+        <div class="form-group">
+            <label for="author" class="form-label">
+                <span class="label-icon">👤</span> Auteur
+            </label>
+            <InputText id="author" @bind-Value="ViewService.InputModel.Author" class="form-control tech-input" placeholder="Votre nom..." />
+            <ValidationMessage For="@(() => ViewService.InputModel.Author)" class="validation-message" />
+        </div>
+
+        <div class="form-group">
+            <label for="previewText" class="form-label">
+                <span class="label-icon">🔍</span> Texte de prévisualisation
+            </label>
+            <InputTextArea id="previewText" @bind-Value="ViewService.InputModel.PreviewText" class="form-control tech-input tech-textarea" 
+                          placeholder="Un court texte qui apparaîtra sur les cartes d'articles..." rows="3" />
+            <ValidationMessage For="@(() => ViewService.InputModel.PreviewText)" class="validation-message" />
+            <small class="form-hint">Maximum 500 caractères</small>
+        </div>
+
+        <div class="form-group">
+            <label for="content" class="form-label">
+                <span class="label-icon">📄</span> Contenu (Markdown)
+            </label>
+            <InputTextArea id="content" @bind-Value="ViewService.InputModel.Content" class="form-control tech-input tech-textarea tech-content" 
+                          placeholder="Rédigez votre article en Markdown ici..." rows="15" />
+            <ValidationMessage For="@(() => ViewService.InputModel.Content)" class="validation-message" />
+        </div>
+
+        @if (ViewService.ErrorMessage is not null)
+        {
+            <div class="alert alert-error">
+                <span class="alert-icon">⚠️</span>
+                <span>@ViewService.ErrorMessage</span>
+            </div>
+        }
+
+        @if (ViewService.IsSubmitting)
+        {
+            <div class="submitting-overlay">
+                <div class="spinner"></div>
+                <p>Création en cours...</p>
+            </div>
+        }
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary tech-btn" disabled="@ViewService.IsSubmitting">
+                <span class="btn-icon">💾</span>
+                @if (ViewService.IsSubmitting)
+                {
+                    <span>Création...</span>
+                }
+                else
+                {
+                    <span>Créer l'article</span>
+                }
+            </button>
+            <button type="button" class="btn btn-secondary tech-btn" @onclick="@ViewService.Cancel" disabled="@ViewService.IsSubmitting">
+                <span class="btn-icon">✖</span> Annuler
+            </button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await ViewService.InitializeAsync();
+    }
+
+    private async Task HandleSubmit()
+    {
+        await ViewService.HandleSubmitAsync();
+        StateHasChanged();
+    }
+}
+

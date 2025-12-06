@@ -15,6 +15,12 @@ public sealed class ApplicationSettings : IApplicationSettings
     public required string UserPassword { get; init; }
 
     /// <inheritdoc/>
+    public required string MongoConnectionString { get; init; }
+
+    /// <inheritdoc/>
+    public required string MongoDatabaseName { get; init; }
+
+    /// <inheritdoc/>
     public string GetSqlServerConnection()
     {
         return $"Server={SqlServer};Database={Dbname};User Id={UserLogin};Password={UserPassword};TrustServerCertificate=True;MultipleActiveResultSets=true;";

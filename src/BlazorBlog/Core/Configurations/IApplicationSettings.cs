@@ -28,4 +28,14 @@ public interface IApplicationSettings
     /// <returns></returns>
     string GetSqlServerConnection();
 
+    /// <summary>
+    /// Chaîne de connexion MongoDB
+    /// </summary>
+    string MongoConnectionString { get; }
+
+    /// <summary>
+    /// Nom de la base de données MongoDB
+    /// </summary>
+    string MongoDatabaseName { get; }
+
 }

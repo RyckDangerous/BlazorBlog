@@ -35,12 +35,20 @@ public static class ApplicationSettingsConfiguration
         string? password = configuration.GetConnectionString("Password");
         ArgumentNullException.ThrowIfNullOrEmpty(password);
 
+        string? mongoConnectionString = configuration["MongoDB:ConnectionString"];
+        ArgumentNullException.ThrowIfNullOrEmpty(mongoConnectionString);
+
+        string? mongoDatabaseName = configuration["MongoDB:DatabaseName"];
+        ArgumentNullException.ThrowIfNullOrEmpty(mongoDatabaseName);
+
         IApplicationSettings config = new ApplicationSettings()
         {
             Dbname = dbName,
             SqlServer = server,
             UserLogin = login,
             UserPassword = password,
+            MongoConnectionString = mongoConnectionString,
+            MongoDatabaseName = mongoDatabaseName,
         };
 
         return config;

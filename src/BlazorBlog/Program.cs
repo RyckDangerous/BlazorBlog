@@ -1,7 +1,9 @@
 using BlazorBlog.Core.Configurations;
 using BlazorBlog.Features;
 using BlazorBlog.Features.Account;
+using BlazorBlog.Features.CreateArticle.Configurations;
 using BlazorBlog.Features.Data;
+using BlazorBlog.Features.Home.Configurations;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -39,6 +41,12 @@ try
     builder.Services.AddLogging();
 
     string connectionString = builder.Services.ConfigureSettings(builder.Configuration);
+    
+    // Configuration MongoDB et services CreateArticle
+    builder.Services.AddCreateArticleServices();
+    
+    // Configuration services Home
+    builder.Services.AddHomeServices();
 
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseSqlServer(connectionString));
