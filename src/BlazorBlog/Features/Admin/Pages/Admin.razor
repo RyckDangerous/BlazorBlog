@@ -1,0 +1,58 @@
+@page "/admin"
+@layout MainLayout
+@using BlazorBlog.Features.Admin.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject IAdminPageViewService ViewService
+
+<PageTitle>Administration</PageTitle>
+
+<div class="admin-container">
+    <div class="admin-header">
+        <h1 class="admin-title">
+            <span class="admin-icon">⚙️</span> Administration
+        </h1>
+        <p class="admin-subtitle">Gestion de votre blog</p>
+    </div>
+
+    <div class="admin-content">
+        @if (ViewService.IsLoading)
+        {
+            <div class="loading-container">
+                <div class="spinner"></div>
+                <p>Chargement des statistiques...</p>
+            </div>
+        }
+        else if (ViewService.ErrorMessage is not null)
+        {
+            <div class="error-container">
+                <div class="alert alert-error">
+                    <span class="alert-icon">⚠️</span>
+                    <span>@ViewService.ErrorMessage</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <div class="stat-icon">📄</div>
+                        <h3 class="stat-title">Articles</h3>
+                    </div>
+                    <div class="stat-value">@ViewService.ArticleCount</div>
+                    <div class="stat-label">article(s) publié(s)</div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await ViewService.LoadStatisticsAsync();
+        StateHasChanged();
+    }
+}
+

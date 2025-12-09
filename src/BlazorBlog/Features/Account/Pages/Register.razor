@@ -21,15 +21,31 @@
 
 <div class="row">
     <div class="col-lg-6">
-        <StatusMessage Message="@Message" />
+        @if (isSuccess)
+        {
+            <div class="alert alert-success" role="alert">
+                <strong>✅ Succès !</strong> @successMessage
+                <p class="mb-0 mt-2">Redirection vers la page de connexion...</p>
+            </div>
+        }
+        else
+        {
+            <StatusMessage Message="@Message" />
+        }
         <EditForm Model="Input" method="post" OnValidSubmit="RegisterUser" FormName="register">
             <DataAnnotationsValidator />
             <h2>Create a new account.</h2>
             <hr />
             <ValidationSummary class="text-danger" role="alert" />
+            <fieldset disabled="@isSuccess">
             <div class="form-floating mb-3">
-                <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
-                <label for="Input.Email">Email</label>
+                <InputText @bind-Value="Input.UserName" id="Input.UserName" class="form-control" autocomplete="username" aria-required="true" placeholder="Nom d'utilisateur" />
+                <label for="Input.UserName">Nom d'utilisateur</label>
+                <ValidationMessage For="() => Input.UserName" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" autocomplete="email" aria-required="false" placeholder="Email (optionnel)" />
+                <label for="Input.Email">Email (optionnel)</label>
                 <ValidationMessage For="() => Input.Email" class="text-danger" />
             </div>
             <div class="form-floating mb-3">
@@ -42,7 +58,8 @@
                 <label for="Input.ConfirmPassword">Confirm Password</label>
                 <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger" />
             </div>
-            <button type="submit" class="w-100 btn btn-lg btn-primary">Register</button>
+            <button type="submit" class="w-100 btn btn-lg btn-primary" disabled="@isSuccess">Register</button>
+            </fieldset>
         </EditForm>
     </div>
     <div class="col-lg-4 col-lg-offset-2">
@@ -56,6 +73,8 @@
 
 @code {
     private IEnumerable<IdentityError>? identityErrors;
+    private bool isSuccess = false;
+    private string? successMessage;
 
     [SupplyParameterFromForm]
     private InputModel Input { get; set; } = default!;
@@ -74,9 +93,12 @@
     {
         var user = CreateUser();
 
-        await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
+        await UserStore.SetUserNameAsync(user, Input.UserName, CancellationToken.None);
         var emailStore = GetEmailStore();
-        await emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
+        if (!string.IsNullOrWhiteSpace(Input.Email))
+        {
+            await emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
+        }
         var result = await UserManager.CreateAsync(user, Input.Password);
 
         if (!result.Succeeded)
@@ -87,26 +109,16 @@
 
         Logger.LogInformation("User created a new account with password.");
 
-        var userId = await UserManager.GetUserIdAsync(user);
-        var code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
-        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-        var callbackUrl = NavigationManager.GetUriWithQueryParameters(
-            NavigationManager.ToAbsoluteUri("Account/ConfirmEmail").AbsoluteUri,
-            new Dictionary<string, object?> { ["userId"] = userId, ["code"] = code, ["returnUrl"] = ReturnUrl });
+        // Afficher le message de succès
+        isSuccess = true;
+        successMessage = $"Le compte '{Input.UserName}' a été créé avec succès !";
+        identityErrors = null;
 
-        await EmailSender.SendConfirmationLinkAsync(user, Input.Email, HtmlEncoder.Default.Encode(callbackUrl));
+        // Attendre 2 secondes avant de rediriger
+        await Task.Delay(2000);
 
-        if (UserManager.Options.SignIn.RequireConfirmedAccount)
-        {
-            RedirectManager.RedirectTo(
-                "Account/RegisterConfirmation",
-                new() { ["email"] = Input.Email, ["returnUrl"] = ReturnUrl });
-        }
-        else
-        {
-            await SignInManager.SignInAsync(user, isPersistent: false);
-            RedirectManager.RedirectTo(ReturnUrl);
-        }
+        // Rediriger vers la page de connexion
+        NavigationManager.NavigateTo("/Account/Login");
     }
 
     private ApplicationUser CreateUser()
@@ -133,20 +145,24 @@
 
     private sealed class InputModel
     {
-        [Required]
-        [EmailAddress]
-        [Display(Name = "Email")]
-        public string Email { get; set; } = "";
+        [Required(ErrorMessage = "Le nom d'utilisateur est requis")]
+        [StringLength(50, ErrorMessage = "Le nom d'utilisateur doit contenir entre {2} et {1} caractères.", MinimumLength = 3)]
+        [Display(Name = "Nom d'utilisateur")]
+        public string UserName { get; set; } = "";
 
-        [Required]
-        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [EmailAddress(ErrorMessage = "L'email n'est pas valide")]
+        [Display(Name = "Email (optionnel)")]
+        public string? Email { get; set; }
+
+        [Required(ErrorMessage = "Le mot de passe est requis")]
+        [StringLength(100, ErrorMessage = "Le mot de passe doit contenir au moins {2} caractères.", MinimumLength = 6)]
         [DataType(DataType.Password)]
-        [Display(Name = "Password")]
+        [Display(Name = "Mot de passe")]
         public string Password { get; set; } = "";
 
         [DataType(DataType.Password)]
-        [Display(Name = "Confirm password")]
-        [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
+        [Display(Name = "Confirmer le mot de passe")]
+        [Compare("Password", ErrorMessage = "Le mot de passe et la confirmation ne correspondent pas.")]
         public string ConfirmPassword { get; set; } = "";
     }
 }

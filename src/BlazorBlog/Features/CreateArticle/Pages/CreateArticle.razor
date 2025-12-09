@@ -1,6 +1,10 @@
 @page "/articles/create"
+
 @using BlazorBlog.Features.CreateArticle.Services
+@using BlazorBlog.Features.CreateArticle.Components
 @using Microsoft.AspNetCore.Authorization
+@rendermode InteractiveServer
+
 @attribute [Authorize]
 @inject ICreateArticlePageViewService ViewService
 
@@ -14,7 +18,7 @@
         <p class="tech-subtitle">Rédigez votre article en Markdown</p>
     </div>
 
-    <EditForm Model="@ViewService.InputModel" OnValidSubmit="@HandleSubmit" class="article-form">
+    <EditForm Model="@ViewService.InputModel" class="article-form">
         <DataAnnotationsValidator />
         
         <div class="form-group">
@@ -26,29 +30,10 @@
         </div>
 
         <div class="form-group">
-            <label for="author" class="form-label">
-                <span class="label-icon">👤</span> Auteur
-            </label>
-            <InputText id="author" @bind-Value="ViewService.InputModel.Author" class="form-control tech-input" placeholder="Votre nom..." />
-            <ValidationMessage For="@(() => ViewService.InputModel.Author)" class="validation-message" />
-        </div>
-
-        <div class="form-group">
-            <label for="previewText" class="form-label">
-                <span class="label-icon">🔍</span> Texte de prévisualisation
-            </label>
-            <InputTextArea id="previewText" @bind-Value="ViewService.InputModel.PreviewText" class="form-control tech-input tech-textarea" 
-                          placeholder="Un court texte qui apparaîtra sur les cartes d'articles..." rows="3" />
-            <ValidationMessage For="@(() => ViewService.InputModel.PreviewText)" class="validation-message" />
-            <small class="form-hint">Maximum 500 caractères</small>
-        </div>
-
-        <div class="form-group">
             <label for="content" class="form-label">
                 <span class="label-icon">📄</span> Contenu (Markdown)
             </label>
-            <InputTextArea id="content" @bind-Value="ViewService.InputModel.Content" class="form-control tech-input tech-textarea tech-content" 
-                          placeholder="Rédigez votre article en Markdown ici..." rows="15" />
+            <MarkdownEditor Content="@ViewService.InputModel.Content" ContentChanged="@HandleContentChanged" />
             <ValidationMessage For="@(() => ViewService.InputModel.Content)" class="validation-message" />
         </div>
 
@@ -69,18 +54,29 @@
         }
 
         <div class="form-actions">
-            <button type="submit" class="btn btn-primary tech-btn" disabled="@ViewService.IsSubmitting">
-                <span class="btn-icon">💾</span>
+            <button type="button" class="btn btn-primary tech-btn" @onclick="HandlePublish" @onclick:preventDefault="true" disabled="@ViewService.IsSubmitting">
+                <span class="btn-icon">🚀</span>
                 @if (ViewService.IsSubmitting)
                 {
-                    <span>Création...</span>
+                    <span>Publication...</span>
                 }
                 else
                 {
-                    <span>Créer l'article</span>
+                    <span>Publier</span>
                 }
             </button>
-            <button type="button" class="btn btn-secondary tech-btn" @onclick="@ViewService.Cancel" disabled="@ViewService.IsSubmitting">
+            <button type="button" class="btn btn-secondary tech-btn" @onclick="HandleSaveDraft" @onclick:preventDefault="true" disabled="@ViewService.IsSubmitting">
+                <span class="btn-icon">💾</span>
+                @if (ViewService.IsSubmitting)
+                {
+                    <span>Sauvegarde...</span>
+                }
+                else
+                {
+                    <span>Sauvegarder en brouillon</span>
+                }
+            </button>
+            <button type="button" class="btn btn-tertiary tech-btn" @onclick="@ViewService.Cancel" @onclick:preventDefault="true" disabled="@ViewService.IsSubmitting">
                 <span class="btn-icon">✖</span> Annuler
             </button>
         </div>
@@ -93,10 +89,34 @@
         await ViewService.InitializeAsync();
     }
 
-    private async Task HandleSubmit()
+    private async Task HandlePublish()
     {
-        await ViewService.HandleSubmitAsync();
-        StateHasChanged();
+        // Valider le formulaire avant de publier
+        if (string.IsNullOrWhiteSpace(ViewService.InputModel.Title) || string.IsNullOrWhiteSpace(ViewService.InputModel.Content))
+        {
+            return;
+        }
+
+        await ViewService.PublishAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleSaveDraft()
+    {
+        // Valider au moins le titre pour sauvegarder en brouillon
+        if (string.IsNullOrWhiteSpace(ViewService.InputModel.Title))
+        {
+            return;
+        }
+
+        await ViewService.SaveAsDraftAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    private async Task HandleContentChanged(string newContent)
+    {
+        ViewService.InputModel.Content = newContent;
+        await InvokeAsync(StateHasChanged);
     }
 }
 

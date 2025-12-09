@@ -33,6 +33,9 @@ public static class CreateArticleServiceConfiguration
         
         // Page ViewService
         services.AddScoped<ICreateArticlePageViewService, CreateArticlePageViewService>();
+        
+        // Markdown Service
+        services.AddSingleton<IMarkdownService, MarkdownService>();
 
         return services;
     }

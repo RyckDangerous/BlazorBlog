@@ -1,16 +1,14 @@
-using BlazorBlog.Core.Models.ViewModels;
-
-namespace BlazorBlog.Features.Home.Services;
+namespace BlazorBlog.Features.Admin.Services;
 
 /// <summary>
-/// Interface pour le service de vue de la page d'accueil.
+/// Interface pour le service de vue de la page d'administration.
 /// </summary>
-public interface IHomePageViewService
+public interface IAdminPageViewService
 {
     /// <summary>
-    /// La liste des articles à afficher.
+    /// Le nombre total d'articles.
     /// </summary>
-    List<ArticleViewModel> Articles { get; }
+    int ArticleCount { get; }
 
     /// <summary>
     /// Indique si le chargement est en cours.
@@ -23,8 +21,8 @@ public interface IHomePageViewService
     string? ErrorMessage { get; }
 
     /// <summary>
-    /// Charge tous les articles.
+    /// Charge les statistiques de l'administration.
     /// </summary>
-    Task LoadArticlesAsync();
+    Task LoadStatisticsAsync();
 }
 

@@ -1,4 +1,5 @@
-using BlazorBlog.Core.Models;
+using BlazorBlog.Core.Models.Converters;
+using BlazorBlog.Core.Models.ViewModels;
 using BlazorBlog.Features.CreateArticle.Repository;
 
 namespace BlazorBlog.Features.Home.Services;
@@ -21,7 +22,7 @@ public sealed class HomePageViewService : IHomePageViewService
     }
 
     /// <inheritdoc/>
-    public List<Article> Articles { get; private set; } = [];
+    public List<ArticleViewModel> Articles { get; private set; } = [];
 
     /// <inheritdoc/>
     public bool IsLoading { get; private set; }
@@ -37,12 +38,15 @@ public sealed class HomePageViewService : IHomePageViewService
 
         try
         {
-            ResultOf<List<Article>> result = await _articleRepository.GetAllAsync();
+            // Récupérer uniquement les articles publiés
+            var result = await _articleRepository.GetPublishedAsync();
 
             if (result.IsSuccess && result.Value is not null)
             {
-                // Trier par date de création décroissante
-                Articles = result.Value.OrderByDescending(a => a.CreatedAt).ToList();
+                // Convertir en ViewModels et trier par date de création décroissante
+                Articles = ArticleConverter.ToViewModels(result.Value)
+                    .OrderByDescending(a => a.CreatedAt)
+                    .ToList();
             }
             else
             {

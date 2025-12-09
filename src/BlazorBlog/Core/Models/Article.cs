@@ -5,8 +5,9 @@ namespace BlazorBlog.Core.Models;
 
 /// <summary>
 /// Représente un article de blog stocké dans MongoDB.
+/// Modèle de mapping pour la base de données.
 /// </summary>
-public sealed record Article
+public sealed record ArticleDb
 {
     /// <summary>
     /// L'identifiant unique de l'article (ObjectId MongoDB).
@@ -50,5 +51,11 @@ public sealed record Article
     /// </summary>
     [BsonElement("modifiedAt")]
     public DateTime ModifiedAt { get; set; }
+
+    /// <summary>
+    /// Indique si l'article est publié et visible publiquement.
+    /// </summary>
+    [BsonElement("isPublished")]
+    public bool IsPublished { get; set; } = false;
 }
 

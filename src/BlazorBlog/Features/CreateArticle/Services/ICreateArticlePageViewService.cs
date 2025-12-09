@@ -23,15 +23,21 @@ public interface ICreateArticlePageViewService
     string? ErrorMessage { get; }
 
     /// <summary>
-    /// Initialise le modèle d'entrée avec le nom de l'utilisateur connecté.
+    /// Initialise le service de vue.
     /// </summary>
     Task InitializeAsync();
 
     /// <summary>
-    /// Gère la soumission du formulaire de création d'article.
+    /// Sauvegarde l'article en brouillon (non publié).
     /// </summary>
-    /// <returns>True si la création a réussi, false sinon.</returns>
-    Task<bool> HandleSubmitAsync();
+    /// <returns>True si la sauvegarde a réussi, false sinon.</returns>
+    Task<bool> SaveAsDraftAsync();
+
+    /// <summary>
+    /// Publie l'article (visible publiquement).
+    /// </summary>
+    /// <returns>True si la publication a réussi, false sinon.</returns>
+    Task<bool> PublishAsync();
 
     /// <summary>
     /// Annule la création et redirige vers la page d'accueil.

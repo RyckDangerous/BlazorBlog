@@ -1,0 +1,228 @@
+@using BlazorBlog.Features.CreateArticle.Services
+@inject IMarkdownService MarkdownService
+@inject IJSRuntime JSRuntime
+
+<script>
+    window.insertMarkdown = function(textAreaId, before, after) {
+        const textarea = document.getElementById(textAreaId);
+        if (!textarea) {
+            return;
+        }
+        
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selectedText = textarea.value.substring(start, end);
+        const textBefore = textarea.value.substring(0, start);
+        const textAfter = textarea.value.substring(end);
+        
+        // Construire le nouveau texte
+        let newText;
+        let newCursorPos;
+        if (selectedText) {
+            // Si du texte est sélectionné, l'entourer avec before et after
+            newText = textBefore + before + selectedText + after + textAfter;
+            newCursorPos = start + before.length + selectedText.length + after.length;
+        } else {
+            // Sinon, insérer before et after, et placer le curseur entre les deux
+            newText = textBefore + before + after + textAfter;
+            newCursorPos = start + before.length;
+        }
+        
+        textarea.value = newText;
+        
+        // Repositionner le curseur
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+        textarea.focus();
+        
+        // Déclencher l'événement input pour mettre à jour le binding Blazor
+        const inputEvent = new Event('input', { bubbles: true, cancelable: true });
+        textarea.dispatchEvent(inputEvent);
+    };
+</script>
+
+<div class="markdown-editor">
+    <div class="markdown-toolbar">
+        <div class="toolbar-group">
+            <button type="button" class="toolbar-btn" @onclick='() => InsertMarkdown("# ", "")' title="Titre 1 (H1)">
+                <strong>H1</strong>
+            </button>
+            <button type="button" class="toolbar-btn" @onclick='() => InsertMarkdown("## ", "")' title="Titre 2 (H2)">
+                <strong>H2</strong>
+            </button>
+            <button type="button" class="toolbar-btn" @onclick='() => InsertMarkdown("### ", "")' title="Titre 3 (H3)">
+                <strong>H3</strong>
+            </button>
+        </div>
+        
+        <div class="toolbar-separator"></div>
+        
+        <div class="toolbar-group">
+            <button type="button" class="toolbar-btn" @onclick='() => InsertMarkdown("**", "**")' title="Gras">
+                <strong>B</strong>
+            </button>
+            <button type="button" class="toolbar-btn" @onclick='() => InsertMarkdown("*", "*")' title="Italique">
+                <em>I</em>
+            </button>
+            <button type="button" class="toolbar-btn" @onclick='() => InsertMarkdown("`", "`")' title="Code inline">
+                <code>&lt;/&gt;</code>
+            </button>
+        </div>
+        
+        <div class="toolbar-separator"></div>
+        
+        <div class="toolbar-group">
+            <button type="button" class="toolbar-btn" @onclick='() => InsertMarkdown("- ", "")' title="Liste à puces">
+                <span>•</span>
+            </button>
+            <button type="button" class="toolbar-btn" @onclick='() => InsertMarkdown("1. ", "")' title="Liste numérotée">
+                <span>1.</span>
+            </button>
+            <button type="button" class="toolbar-btn" @onclick='() => InsertMarkdown("> ", "")' title="Citation">
+                <span>"</span>
+            </button>
+        </div>
+        
+        <div class="toolbar-separator"></div>
+        
+        <div class="toolbar-group">
+            <button type="button" class="toolbar-btn" @onclick='() => InsertMarkdown("[", "](url)")' title="Lien">
+                <span>🔗</span>
+            </button>
+            <button type="button" class="toolbar-btn" @onclick='() => InsertMarkdown("![", "](url)")' title="Image">
+                <span>🖼️</span>
+            </button>
+        </div>
+        
+        <div class="toolbar-separator"></div>
+        
+        <div class="toolbar-group">
+            <button type="button" class="toolbar-btn toolbar-btn-preview @(ShowPreview ? "active" : "")" @onclick="TogglePreview" title="Aperçu">
+                <span>👁️</span>
+            </button>
+        </div>
+    </div>
+    
+    <div class="markdown-content">
+        @if (ShowPreview)
+        {
+            <div class="markdown-preview">
+                <div class="preview-header">
+                    <span>Aperçu</span>
+                </div>
+                <div class="preview-content" @ref="previewElement">
+                    @((MarkupString)PreviewHtml)
+                </div>
+            </div>
+        }
+        else
+        {
+            <textarea 
+                id="@TextAreaId" 
+                value="@Content"
+                @oninput="HandleInput"
+                class="markdown-textarea"
+                placeholder="Rédigez votre article en Markdown ici..."
+                rows="15"></textarea>
+        }
+    </div>
+</div>
+
+@code {
+    private ElementReference previewElement;
+    private bool _showPreview = false;
+    
+    /// <summary>
+    /// L'identifiant unique du textarea pour les opérations JavaScript.
+    /// </summary>
+    private string TextAreaId { get; } = $"markdown-editor-{Guid.NewGuid():N}";
+    
+    /// <summary>
+    /// Le contenu Markdown éditable.
+    /// </summary>
+    [Parameter]
+    public string Content { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Callback appelé lorsque le contenu change.
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> ContentChanged { get; set; }
+    
+    /// <summary>
+    /// Indique si l'aperçu est affiché.
+    /// </summary>
+    private bool ShowPreview
+    {
+        get => _showPreview;
+        set
+        {
+            if (_showPreview != value)
+            {
+                _showPreview = value;
+                UpdatePreview();
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Le HTML généré à partir du Markdown pour l'aperçu.
+    /// </summary>
+    private string PreviewHtml { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Bascule entre le mode édition et l'aperçu.
+    /// </summary>
+    private void TogglePreview()
+    {
+        ShowPreview = !ShowPreview;
+    }
+    
+    /// <summary>
+    /// Met à jour l'aperçu HTML.
+    /// </summary>
+    private void UpdatePreview()
+    {
+        PreviewHtml = MarkdownService.ToHtml(Content);
+    }
+    
+    /// <summary>
+    /// Gère les changements dans le textarea.
+    /// </summary>
+    private async Task HandleInput(ChangeEventArgs e)
+    {
+        Content = e.Value?.ToString() ?? string.Empty;
+        await ContentChanged.InvokeAsync(Content);
+        if (ShowPreview)
+        {
+            UpdatePreview();
+        }
+    }
+    
+    /// <summary>
+    /// Insère du Markdown à la position du curseur dans le textarea.
+    /// </summary>
+    /// <param name="before">Le texte à insérer avant la sélection.</param>
+    /// <param name="after">Le texte à insérer après la sélection.</param>
+    private async Task InsertMarkdown(string before, string after)
+    {
+        if (ShowPreview)
+        {
+            ShowPreview = false;
+            await Task.Delay(50); // Attendre que le textarea soit rendu
+        }
+        
+        await JSRuntime.InvokeVoidAsync("insertMarkdown", TextAreaId, before, after);
+    }
+    
+    /// <summary>
+    /// Met à jour l'aperçu lorsque le contenu change.
+    /// </summary>
+    protected override void OnParametersSet()
+    {
+        if (ShowPreview)
+        {
+            UpdatePreview();
+        }
+    }
+}
+

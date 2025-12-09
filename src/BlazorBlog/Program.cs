@@ -1,6 +1,7 @@
 using BlazorBlog.Core.Configurations;
 using BlazorBlog.Features;
 using BlazorBlog.Features.Account;
+using BlazorBlog.Features.Admin.Configurations;
 using BlazorBlog.Features.CreateArticle.Configurations;
 using BlazorBlog.Features.Data;
 using BlazorBlog.Features.Home.Configurations;
@@ -47,6 +48,9 @@ try
     
     // Configuration services Home
     builder.Services.AddHomeServices();
+    
+    // Configuration services Admin
+    builder.Services.AddAdminServices();
 
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseSqlServer(connectionString));
@@ -56,6 +60,7 @@ try
         {
             options.SignIn.RequireConfirmedAccount = false;
             options.Stores.SchemaVersion = IdentitySchemaVersions.Version3;
+            options.User.RequireUniqueEmail = false; // L'email n'est pas requis
         })
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddSignInManager()

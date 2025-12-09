@@ -1,4 +1,5 @@
 using BlazorBlog.Core.Models;
+using BlazorBlog.Core.Models.ViewModels;
 using BlazorBlog.Features.CreateArticle.Models;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -41,33 +42,58 @@ public sealed class CreateArticlePageViewService : ICreateArticlePageViewService
     public string? ErrorMessage { get; private set; }
 
     /// <inheritdoc/>
-    public async Task InitializeAsync()
+    public Task InitializeAsync()
     {
-        var authState = await _authenticationStateProvider.GetAuthenticationStateAsync();
-        if (authState.User?.Identity?.Name is not null)
-        {
-            InputModel = InputModel with { Author = authState.User.Identity.Name };
-        }
+        // Plus besoin d'initialiser l'auteur, il sera passé lors de la création
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc/>
-    public async Task<bool> HandleSubmitAsync()
+    public async Task<bool> SaveAsDraftAsync()
+    {
+        return await SaveArticleAsync(isPublished: false);
+    }
+
+    /// <inheritdoc/>
+    public async Task<bool> PublishAsync()
+    {
+        return await SaveArticleAsync(isPublished: true);
+    }
+
+    /// <summary>
+    /// Sauvegarde l'article avec le statut de publication spécifié.
+    /// </summary>
+    /// <param name="isPublished">Indique si l'article doit être publié.</param>
+    /// <returns>True si la sauvegarde a réussi, false sinon.</returns>
+    private async Task<bool> SaveArticleAsync(bool isPublished)
     {
         IsSubmitting = true;
         ErrorMessage = null;
 
         try
         {
-            ResultOf<Article> result = await _articleViewService.CreateArticleAsync(InputModel);
+            // Récupérer l'auteur depuis l'utilisateur connecté
+            var authState = await _authenticationStateProvider.GetAuthenticationStateAsync();
+            string author = authState.User?.Identity?.Name ?? "Anonyme";
+
+            ResultOf<ArticleViewModel> result = await _articleViewService.CreateArticleAsync(InputModel, author, isPublished);
 
             if (result.IsSuccess && result.Value is not null)
             {
-                _navigationManager.NavigateTo($"/articles/{result.Value.Id}");
+                if (isPublished)
+                {
+                    _navigationManager.NavigateTo($"/articles/{result.Value.Id}");
+                }
+                else
+                {
+                    // Rediriger vers l'admin après sauvegarde en brouillon
+                    _navigationManager.NavigateTo("/admin");
+                }
                 return true;
             }
             else
             {
-                ErrorMessage = result.Error?.Message ?? "Une erreur est survenue lors de la création de l'article.";
+                ErrorMessage = result.Error?.Message ?? "Une erreur est survenue lors de la sauvegarde de l'article.";
                 return false;
             }
         }
